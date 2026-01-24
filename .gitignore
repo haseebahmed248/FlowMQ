@@ -1,0 +1,17 @@
+# Binaries
+flowmq
+*.exe
+*.out
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Data files
+*.log
+data/
