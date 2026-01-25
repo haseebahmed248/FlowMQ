@@ -26,6 +26,7 @@ func ReadFrame(conn net.Conn) ([]byte, uint32, []byte, error) {
 
 	// Payload (Rest of length bytes)
 	payload := make([]byte, length)
+
 	_, err = io.ReadFull(conn, payload)
 	if err != nil {
 		return nil, 0, nil, errors.New("user disconnected")

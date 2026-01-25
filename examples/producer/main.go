@@ -2,6 +2,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"log"
 	"net"
 )
@@ -12,12 +13,19 @@ func main() {
 		log.Print(err)
 		return
 	}
-	data.Write([]byte{0x01, 0x00, 0x00, 0x00, 0x00})
-	buf := make([]byte, 1024)
+	payload := []byte("hello")
+
+	// Write command (1 byte)
+	data.Write([]byte{0x03})
+
+	lenBuf := make([]byte, 4)
+	binary.BigEndian.PutUint32(lenBuf, uint32(len(payload)))
+	data.Write(lenBuf)
+
+	data.Write(payload)
+
+	buf := make([]byte, 8)
 	data.Read(buf)
-	if err != nil {
-		log.Print(err)
-	}
 	log.Print(buf)
 	log.Print(string(buf))
 }

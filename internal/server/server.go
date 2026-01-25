@@ -3,8 +3,10 @@ package server
 
 import (
 	"flowmq/internal/protocol"
+	"flowmq/internal/topic"
 	"log"
 	"net"
+	"strings"
 	"sync"
 )
 
@@ -31,9 +33,46 @@ func handleConnection(conn net.Conn) {
 		if err != nil {
 			return
 		}
-		if command[0] == 0x01 {
-			protocol.WriteFrame(conn, 0x02, payload)
+		switch command[0] {
+		case 0x01:
+			{
+				protocol.WriteFrame(conn, 0x02, payload)
+				break
+			}
+		case 0x03:
+			{
+				if len(payload) > 0 {
+					err := topic.CreateTopic(string(payload))
+					if err != nil {
+						protocol.WriteFrame(conn, 0xFF, payload)
+						break
+					}
+					protocol.WriteFrame(conn, 0x10, payload)
+					break
+				}
+				protocol.WriteFrame(conn, 0xFF, payload)
+			}
+		case 0x08:
+			{
+				topics := topic.ListTopics()
+				result := strings.Join(topics, ",")
+				protocol.WriteFrame(conn, 0x10, []byte(result))
+			}
+		case 0x09:
+			{
+				if len(payload) > 0 {
+					err := topic.DeleteTopic(string(payload))
+					if err != nil {
+						protocol.WriteFrame(conn, 0xFF, payload)
+						break
+					}
+					protocol.WriteFrame(conn, 0x10, payload)
+					break
+				}
+				protocol.WriteFrame(conn, 0xFF, payload)
+			}
 		}
+
 	}
 }
 
