@@ -13,10 +13,16 @@ func main() {
 		log.Print(err)
 		return
 	}
-	payload := []byte("hello")
+	payload := []byte("world\x00 earth")
 
 	// Write command (1 byte)
-	data.Write([]byte{0x03})
+	// data.Write([]byte{0x03})
+
+	// lenBuf := make([]byte, 4)
+	// binary.BigEndian.PutUint32(lenBuf, uint32(len(payload)))
+	// data.Write(lenBuf)
+
+	data.Write([]byte{0x04})
 
 	lenBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(lenBuf, uint32(len(payload)))

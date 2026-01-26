@@ -39,7 +39,7 @@ func handleConnection(conn net.Conn) {
 				protocol.WriteFrame(conn, 0x02, payload)
 				break
 			}
-		case 0x03:
+		case 0x03: //CREATE_TOPIC
 			{
 				if len(payload) > 0 {
 					err := topic.CreateTopic(string(payload))
@@ -70,6 +70,19 @@ func handleConnection(conn net.Conn) {
 					break
 				}
 				protocol.WriteFrame(conn, 0xFF, payload)
+			}
+		case 0x04:
+			{
+				data := strings.Split(string(payload), "\x00")
+				if len(data) >= 2 && data[1] != "" && data[0] != "" {
+					response, err := topic.Publish(data[0], []byte(data[1]))
+					if err != nil {
+						protocol.WriteFrame(conn, 0xFF, payload)
+						break
+					}
+					protocol.WriteFrame(conn, 0x10, []byte(response))
+					break
+				}
 			}
 		}
 
