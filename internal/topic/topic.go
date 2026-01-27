@@ -24,7 +24,7 @@ type Topic struct {
 	Subscribers []net.Conn
 }
 
-var topics = make(map[string]*Topic)
+var Topics = make(map[string]*Topic)
 var mu sync.RWMutex
 
 // Functions
@@ -32,11 +32,11 @@ func CreateTopic(name string) error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	if topics[name] != nil {
+	if Topics[name] != nil {
 		return errors.New("Topic already exist")
 	}
 
-	topics[name] = &Topic{
+	Topics[name] = &Topic{
 		Name:        name,
 		Messages:    []Message{},
 		Subscribers: []net.Conn{},
@@ -48,7 +48,7 @@ func ListTopics() []string {
 	mu.RLock()
 	defer mu.RUnlock()
 	var response []string
-	for k, _ := range topics {
+	for k, _ := range Topics {
 		response = append(response, k)
 	}
 	return response
@@ -57,10 +57,10 @@ func ListTopics() []string {
 func DeleteTopic(name string) error {
 	mu.Lock()
 	defer mu.Unlock()
-	if topics[name] == nil {
+	if Topics[name] == nil {
 		return errors.New("No topic exsist on this name")
 	}
-	delete(topics, name)
+	delete(Topics, name)
 	return nil
 }
 
@@ -68,18 +68,18 @@ func Publish(name string, payload []byte) (string, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	id := uuid.NewString()
-	if topics[name] == nil {
+	if Topics[name] == nil {
 		return "", errors.New("Topic doesn't exists")
 	}
 
-	topics[name].Messages = append(topics[name].Messages, Message{
+	Topics[name].Messages = append(Topics[name].Messages, Message{
 		ID:        id,
 		Payload:   payload,
 		Timestamp: time.Now(),
 		Status:    "PENDING",
 	})
 	fullPayload := id + "\x00" + string(payload)
-	for _, conn := range topics[name].Subscribers {
+	for _, conn := range Topics[name].Subscribers {
 		protocol.WriteFrame(conn, 0x07, []byte(fullPayload))
 	}
 
@@ -89,9 +89,9 @@ func Publish(name string, payload []byte) (string, error) {
 func Subscribe(name string, conn net.Conn) error {
 	mu.Lock()
 	defer mu.Unlock()
-	if _, ok := topics[name]; !ok {
+	if _, ok := Topics[name]; !ok {
 		return errors.New("No topic exists of specified name")
 	}
-	topics[name].Subscribers = append(topics[name].Subscribers, conn)
+	Topics[name].Subscribers = append(Topics[name].Subscribers, conn)
 	return nil
 }

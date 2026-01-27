@@ -67,7 +67,19 @@ func main() {
 			log.Print("Error reading message:", err)
 			return
 		}
-		data := strings.Split(string(msgBuf), "\x00")
-		log.Printf("Received message: %s", data[1])
+		if string(msgBuf) != "" {
+			response := strings.Split(string(msgBuf), "\x00")
+			log.Printf("Received message: %s", response[1])
+
+			//ACK
+			data.Write([]byte{0x06})
+
+			// Length
+			lenBuf = make([]byte, 4)
+			binary.BigEndian.PutUint32(lenBuf, uint32(len(response[0])))
+			data.Write(lenBuf)
+
+			data.Write([]byte(response[0]))
+		}
 	}
 }

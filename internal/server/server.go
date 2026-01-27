@@ -2,6 +2,7 @@
 package server
 
 import (
+	"flowmq/internal/consumer"
 	"flowmq/internal/protocol"
 	"flowmq/internal/topic"
 	"log"
@@ -94,8 +95,19 @@ func handleConnection(conn net.Conn) {
 				}
 				protocol.WriteFrame(conn, 0x10, nil)
 			}
+		case 0x06:
+			{
+				messageID := string(payload)
+				consumer.Acknowledged(conn, messageID)
+				protocol.WriteFrame(conn, 0x10, nil)
+			}
+		case 0x0A:
+			{
+				messageID := string(payload)
+				consumer.NACK(conn, messageID)
+				protocol.WriteFrame(conn, 0x10, nil)
+			}
 		}
-
 	}
 }
 
@@ -106,6 +118,7 @@ func StartServer() {
 		return
 	}
 	log.Print("Server listening to port 9876")
+
 	for {
 		conn, err := server.Accept()
 		if err != nil {
