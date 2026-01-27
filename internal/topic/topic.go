@@ -3,6 +3,8 @@ package topic
 
 import (
 	"errors"
+	"flowmq/internal/protocol"
+	"net"
 	"sync"
 	"time"
 
@@ -17,8 +19,9 @@ type Message struct {
 }
 
 type Topic struct {
-	Name     string
-	Messages []Message
+	Name        string
+	Messages    []Message
+	Subscribers []net.Conn
 }
 
 var topics = make(map[string]*Topic)
@@ -34,8 +37,9 @@ func CreateTopic(name string) error {
 	}
 
 	topics[name] = &Topic{
-		Name:     name,
-		Messages: []Message{},
+		Name:        name,
+		Messages:    []Message{},
+		Subscribers: []net.Conn{},
 	}
 	return nil
 }
@@ -67,11 +71,27 @@ func Publish(name string, payload []byte) (string, error) {
 	if topics[name] == nil {
 		return "", errors.New("Topic doesn't exists")
 	}
+
 	topics[name].Messages = append(topics[name].Messages, Message{
 		ID:        id,
 		Payload:   payload,
 		Timestamp: time.Now(),
-		Status:    "PENDING",
+		Status:    "DELIVERED",
 	})
+	fullPayload := id + "\x00" + string(payload)
+	for _, conn := range topics[name].Subscribers {
+		protocol.WriteFrame(conn, 0x07, []byte(fullPayload))
+	}
+
 	return id, nil
+}
+
+func Subscribe(name string, conn net.Conn) error {
+	mu.Lock()
+	defer mu.Unlock()
+	if _, ok := topics[name]; !ok {
+		return errors.New("No topic exists of specified name")
+	}
+	topics[name].Subscribers = append(topics[name].Subscribers, conn)
+	return nil
 }

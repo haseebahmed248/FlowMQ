@@ -84,6 +84,16 @@ func handleConnection(conn net.Conn) {
 					break
 				}
 			}
+		case 0x05:
+			{
+				topicName := string(payload)
+				err := topic.Subscribe(topicName, conn)
+				if err != nil {
+					protocol.WriteFrame(conn, 0xFF, []byte(err.Error()))
+					break
+				}
+				protocol.WriteFrame(conn, 0x10, nil)
+			}
 		}
 
 	}
