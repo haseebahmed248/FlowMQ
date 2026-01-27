@@ -13,60 +13,49 @@ func main() {
 		log.Print(err)
 		return
 	}
-	payload := []byte("world")
+	defer data.Close()
 
-	// Write command (1 byte)
-	// data.Write([]byte{0x03})
+	topicName := []byte("world")
 
-	// lenBuf := make([]byte, 4)
-	// binary.BigEndian.PutUint32(lenBuf, uint32(len(payload)))
-	// data.Write(lenBuf)
-
-	data.Write([]byte{0x05})
+	// Create Topic (0x03)
+	log.Println("Creating topic 'world'...")
+	data.Write([]byte{0x03})
 
 	lenBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(lenBuf, uint32(len(payload)))
+	binary.BigEndian.PutUint32(lenBuf, uint32(len(topicName)))
 	data.Write(lenBuf)
+	data.Write(topicName)
 
-	data.Write(payload)
-
-	// Read the subscription response
-	buf := make([]byte, 8)
-	n, err := data.Read(buf)
+	// Read create topic response
+	buf := make([]byte, 5)
+	_, err = data.Read(buf)
 	if err != nil {
-		log.Print("Error reading response:", err)
+		log.Print("Error reading create response:", err)
 		return
 	}
-	log.Printf("Subscribed successfully. Response: %v", buf[:n])
+	log.Printf("Topic created. Response: %v", buf)
 
-	// Keep the connection alive and listen for messages
-	log.Println("Waiting for messages on topic 'world'...")
-	for {
-		// Read command byte
-		cmdBuf := make([]byte, 1)
-		_, err := data.Read(cmdBuf)
-		if err != nil {
-			log.Print("Connection closed:", err)
-			return
-		}
+	// Publish message (0x04)
+	message := []byte("Hello from producer!")
+	log.Println("Publishing message to topic 'world'...")
 
-		// Read length
-		lenBuf := make([]byte, 4)
-		_, err = data.Read(lenBuf)
-		if err != nil {
-			log.Print("Error reading length:", err)
-			return
-		}
-		length := binary.BigEndian.Uint32(lenBuf)
+	data.Write([]byte{0x04})
 
-		// Read payload
-		msgBuf := make([]byte, length)
-		_, err = data.Read(msgBuf)
-		if err != nil {
-			log.Print("Error reading message:", err)
-			return
-		}
+	// Payload format for PUBLISH: topicName\x00message
+	payload := append(topicName, '\x00')
+	payload = append(payload, message...)
 
-		log.Printf("Received message: %s", string(msgBuf))
+	lenBuf2 := make([]byte, 4)
+	binary.BigEndian.PutUint32(lenBuf2, uint32(len(payload)))
+	data.Write(lenBuf2)
+	data.Write(payload)
+
+	// Read publish response
+	buf2 := make([]byte, 50)
+	n, err := data.Read(buf2)
+	if err != nil {
+		log.Print("Error reading publish response:", err)
+		return
 	}
+	log.Printf("Message published. Response: %s", string(buf2[:n]))
 }

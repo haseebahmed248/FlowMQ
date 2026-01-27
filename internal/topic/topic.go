@@ -76,7 +76,7 @@ func Publish(name string, payload []byte) (string, error) {
 		ID:        id,
 		Payload:   payload,
 		Timestamp: time.Now(),
-		Status:    "DELIVERED",
+		Status:    "PENDING",
 	})
 	fullPayload := id + "\x00" + string(payload)
 	for _, conn := range topics[name].Subscribers {
