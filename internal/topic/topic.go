@@ -3,7 +3,9 @@ package topic
 
 import (
 	"errors"
+	"flowmq/internal/models"
 	"flowmq/internal/protocol"
+	"flowmq/internal/storage"
 	"net"
 	"sync"
 	"time"
@@ -11,20 +13,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type Message struct {
-	ID        string
-	Payload   []byte
-	Timestamp time.Time
-	Status    string // "PENDING", "DELIVERED", "ACKNOWLEDGED"
-}
-
-type Topic struct {
-	Name        string
-	Messages    []Message
-	Subscribers []net.Conn
-}
-
-var Topics = make(map[string]*Topic)
 var mu sync.RWMutex
 
 // Functions
@@ -32,13 +20,13 @@ func CreateTopic(name string) error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	if Topics[name] != nil {
+	if models.Topics[name] != nil {
 		return errors.New("Topic already exist")
 	}
 
-	Topics[name] = &Topic{
+	models.Topics[name] = &models.Topic{
 		Name:        name,
-		Messages:    []Message{},
+		Messages:    []models.Message{},
 		Subscribers: []net.Conn{},
 	}
 	return nil
@@ -48,7 +36,7 @@ func ListTopics() []string {
 	mu.RLock()
 	defer mu.RUnlock()
 	var response []string
-	for k, _ := range Topics {
+	for k, _ := range models.Topics {
 		response = append(response, k)
 	}
 	return response
@@ -57,10 +45,10 @@ func ListTopics() []string {
 func DeleteTopic(name string) error {
 	mu.Lock()
 	defer mu.Unlock()
-	if Topics[name] == nil {
+	if models.Topics[name] == nil {
 		return errors.New("No topic exsist on this name")
 	}
-	delete(Topics, name)
+	delete(models.Topics, name)
 	return nil
 }
 
@@ -68,18 +56,24 @@ func Publish(name string, payload []byte) (string, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	id := uuid.NewString()
-	if Topics[name] == nil {
+	if models.Topics[name] == nil {
 		return "", errors.New("Topic doesn't exists")
 	}
 
-	Topics[name].Messages = append(Topics[name].Messages, Message{
+	models.Topics[name].Messages = append(models.Topics[name].Messages, models.Message{
+		ID:        id,
+		Payload:   payload,
+		Timestamp: time.Now(),
+		Status:    "PENDING",
+	})
+	storage.AppendToWAL(name, models.Message{
 		ID:        id,
 		Payload:   payload,
 		Timestamp: time.Now(),
 		Status:    "PENDING",
 	})
 	fullPayload := id + "\x00" + string(payload)
-	for _, conn := range Topics[name].Subscribers {
+	for _, conn := range models.Topics[name].Subscribers {
 		protocol.WriteFrame(conn, 0x07, []byte(fullPayload))
 	}
 
@@ -89,9 +83,9 @@ func Publish(name string, payload []byte) (string, error) {
 func Subscribe(name string, conn net.Conn) error {
 	mu.Lock()
 	defer mu.Unlock()
-	if _, ok := Topics[name]; !ok {
+	if _, ok := models.Topics[name]; !ok {
 		return errors.New("No topic exists of specified name")
 	}
-	Topics[name].Subscribers = append(Topics[name].Subscribers, conn)
+	models.Topics[name].Subscribers = append(models.Topics[name].Subscribers, conn)
 	return nil
 }

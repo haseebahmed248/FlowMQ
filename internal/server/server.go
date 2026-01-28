@@ -4,6 +4,7 @@ package server
 import (
 	"flowmq/internal/consumer"
 	"flowmq/internal/protocol"
+	"flowmq/internal/storage"
 	"flowmq/internal/topic"
 	"log"
 	"net"
@@ -118,7 +119,7 @@ func StartServer() {
 		return
 	}
 	log.Print("Server listening to port 9876")
-
+	storage.ReplayWAL()
 	for {
 		conn, err := server.Accept()
 		if err != nil {

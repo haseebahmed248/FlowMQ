@@ -3,7 +3,7 @@ package consumer
 
 import (
 	"errors"
-	"flowmq/internal/topic"
+	"flowmq/internal/models"
 	"net"
 	"sync"
 	"time"
@@ -28,7 +28,7 @@ func Acknowledged(connAddr net.Conn, messageID string) error {
 	if !deleted {
 		return errors.New("Message doesn't exists")
 	}
-	for _, v := range topic.Topics {
+	for _, v := range models.Topics {
 		for k, v1 := range v.Messages {
 			if v1.ID == messageID {
 				v.Messages[k].ID = "ACKNOWLEDGED"
@@ -49,7 +49,7 @@ func NACK(connAddr net.Conn, messageID string) error {
 	if !deleted {
 		return errors.New("Message doesn't exists")
 	}
-	for _, v := range topic.Topics {
+	for _, v := range models.Topics {
 		for _, v1 := range v.Messages {
 			if v1.ID == messageID {
 				for k1 := range v.Subscribers {
@@ -81,7 +81,7 @@ func StartRedeliveryChecker() {
 		if messageID != "" {
 			elapsedSeconds := int(time.Since(timeLeft).Seconds())
 			if elapsedSeconds > 30 {
-				for _, v := range topic.Topics {
+				for _, v := range models.Topics {
 					for _, v1 := range v.Messages {
 						if v1.ID == messageID {
 							client.Write(v1.Payload)
