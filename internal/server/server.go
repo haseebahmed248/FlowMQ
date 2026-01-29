@@ -120,6 +120,7 @@ func StartServer() {
 	}
 	log.Print("Server listening to port 9876")
 	storage.ReplayWAL()
+	go consumer.StartRedeliveryChecker()
 	for {
 		conn, err := server.Accept()
 		if err != nil {

@@ -37,8 +37,6 @@ func AppendToWAL(topicName string, msg models.Message) error {
 	file.Write(data)
 	file.Write([]byte("\n"))
 
-	log.Print("WROTE: ", lenBuf, " ========= ", data)
-
 	return nil
 }
 
@@ -78,9 +76,12 @@ func ReplayWAL() {
 			log.Print("Error unmarshaling entry:", err)
 			continue
 		}
-		if entry.Message.Status != "DELIVERED" {
-			models.Topics[entry.TopicName] = &models.Topic{
-				Name: entry.TopicName,
+		if entry.Message.Status != "ACKNOWLEDGED" {
+			if _, ok := models.Topics[entry.TopicName]; !ok {
+				models.Topics[entry.TopicName] = &models.Topic{
+					Name: entry.TopicName,
+				}
+
 			}
 			models.Topics[entry.TopicName].Messages = append(models.Topics[entry.TopicName].Messages, models.Message{
 				ID:        entry.Message.ID,
@@ -89,8 +90,5 @@ func ReplayWAL() {
 				Status:    entry.Message.Status,
 			})
 		}
-
-		log.Printf("Restored: Topic=%s, MessageID=%s, Status=%s",
-			entry.TopicName, entry.Message.ID, entry.Message.Status)
 	}
 }

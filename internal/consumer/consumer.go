@@ -4,6 +4,7 @@ package consumer
 import (
 	"errors"
 	"flowmq/internal/models"
+	"flowmq/internal/protocol"
 	"net"
 	"sync"
 	"time"
@@ -18,6 +19,8 @@ var Consumers = make(map[string]*Consumer)
 var mu sync.Mutex
 
 func Acknowledged(connAddr net.Conn, messageID string) error {
+	mu.Lock()
+	defer mu.Unlock()
 	deleted := false
 	for _, v := range Consumers {
 		if _, ok := v.PendingMessages[messageID]; ok {
@@ -31,7 +34,7 @@ func Acknowledged(connAddr net.Conn, messageID string) error {
 	for _, v := range models.Topics {
 		for k, v1 := range v.Messages {
 			if v1.ID == messageID {
-				v.Messages[k].ID = "ACKNOWLEDGED"
+				v.Messages[k].Status = "ACKNOWLEDGED"
 			}
 		}
 	}
@@ -39,6 +42,8 @@ func Acknowledged(connAddr net.Conn, messageID string) error {
 }
 
 func NACK(connAddr net.Conn, messageID string) error {
+	mu.Lock()
+	defer mu.Unlock()
 	deleted := false
 	for _, v := range Consumers {
 		if _, ok := v.PendingMessages[messageID]; ok {
@@ -54,7 +59,7 @@ func NACK(connAddr net.Conn, messageID string) error {
 			if v1.ID == messageID {
 				for k1 := range v.Subscribers {
 					if v.Subscribers[k1] == connAddr {
-						v.Subscribers[k1].Write(v1.Payload)
+						protocol.WriteFrame(connAddr, 0x07, v1.Payload)
 					}
 				}
 			}
@@ -68,27 +73,24 @@ func StartRedeliveryChecker() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		messageID := ""
-		var timeLeft time.Time
 		var client net.Conn
 		for _, v := range Consumers {
 			for k, v1 := range v.PendingMessages {
 				client = v.Conn
-				messageID = k
-				timeLeft = v1
-			}
-		}
-		if messageID != "" {
-			elapsedSeconds := int(time.Since(timeLeft).Seconds())
-			if elapsedSeconds > 30 {
-				for _, v := range models.Topics {
-					for _, v1 := range v.Messages {
-						if v1.ID == messageID {
-							client.Write(v1.Payload)
+				if k != "" {
+					elapsedSeconds := int(time.Since(v1).Seconds())
+					if elapsedSeconds > 30 {
+						for _, v := range models.Topics {
+							for _, v1 := range v.Messages {
+								if v1.ID == k {
+									protocol.WriteFrame(client, 0x07, v1.Payload)
+								}
+							}
 						}
 					}
 				}
 			}
 		}
+
 	}
 }
