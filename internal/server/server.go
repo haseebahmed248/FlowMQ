@@ -6,6 +6,7 @@ import (
 	"flowmq/internal/protocol"
 	"flowmq/internal/storage"
 	"flowmq/internal/topic"
+	"fmt"
 	"log"
 	"net"
 	"strings"
@@ -124,8 +125,8 @@ func handleConnection(conn net.Conn) {
 	}
 }
 
-func StartServer() {
-	server, err := net.Listen("tcp", "0.0.0.0:9876")
+func StartServer(port string) {
+	server, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
 	if err != nil {
 		log.Print(err)
 		return
