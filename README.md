@@ -1,6 +1,6 @@
 # FlowMQ
 
-Distributed message queue built from scratch in Go — custom binary protocol, topic-based pub/sub, consumer groups, persistence (WAL), Docker-ready.
+Distributed message queue built from scratch in Go - custom binary protocol, topic-based pub/sub, consumer groups, persistence (WAL), Docker-ready.
 
 **No external dependencies** for core functionality. Just Go's standard library + UUID generation.
 
