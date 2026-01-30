@@ -28,6 +28,8 @@ func CreateTopic(name string) error {
 		Name:        name,
 		Messages:    []models.Message{},
 		Subscribers: []net.Conn{},
+		Group:       make(map[string][]net.Conn),
+		GroupIndex:  map[string]int{},
 	}
 	return nil
 }
@@ -73,19 +75,60 @@ func Publish(name string, payload []byte) (string, error) {
 		Status:    "PENDING",
 	})
 	fullPayload := id + "\x00" + string(payload)
+
 	for _, conn := range models.Topics[name].Subscribers {
 		protocol.WriteFrame(conn, 0x07, []byte(fullPayload))
+	}
+
+	// Convert map to slice for round-robin indexing
+
+	for k, v := range models.Topics[name].Group {
+		groupIndex := models.Topics[name].GroupIndex[k]
+		connection := v[groupIndex%len(v)]
+		protocol.WriteFrame(connection, 0x07, []byte(fullPayload))
+		models.Topics[name].GroupIndex[k]++
 	}
 
 	return id, nil
 }
 
-func Subscribe(name string, conn net.Conn) error {
+func Subscribe(name string, conn net.Conn, groupName string) error {
 	mu.Lock()
 	defer mu.Unlock()
 	if _, ok := models.Topics[name]; !ok {
 		return errors.New("No topic exists of specified name")
 	}
-	models.Topics[name].Subscribers = append(models.Topics[name].Subscribers, conn)
+	if groupName != "" {
+		models.Topics[name].Group[groupName] = append(models.Topics[name].Group[groupName], conn)
+	} else {
+		models.Topics[name].Subscribers = append(models.Topics[name].Subscribers, conn)
+	}
+
 	return nil
+}
+
+func Cleanup(conn net.Conn) {
+	mu.Lock()
+	defer mu.Unlock()
+	for _, topic := range models.Topics {
+		// Clean up from Groups
+		for groupName, conns := range topic.Group {
+			filtered := make([]net.Conn, 0, len(conns))
+			for _, c := range conns {
+				if c != conn {
+					filtered = append(filtered, c)
+				}
+			}
+			topic.Group[groupName] = filtered
+		}
+
+		// Clean up from Subscribers
+		filtered := make([]net.Conn, 0, len(topic.Subscribers))
+		for _, c := range topic.Subscribers {
+			if c != conn {
+				filtered = append(filtered, c)
+			}
+		}
+		topic.Subscribers = filtered
+	}
 }

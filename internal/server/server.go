@@ -21,6 +21,9 @@ func handleConnection(conn net.Conn) {
 	clients[clientAddr] = conn
 	mu.Unlock()
 
+	defer func() {
+		topic.Cleanup(conn)
+	}()
 	defer conn.Close()
 
 	defer func() {
@@ -88,12 +91,21 @@ func handleConnection(conn net.Conn) {
 			}
 		case 0x05:
 			{
-				topicName := string(payload)
-				err := topic.Subscribe(topicName, conn)
-				if err != nil {
-					protocol.WriteFrame(conn, 0xFF, []byte(err.Error()))
-					break
+				topicName := strings.Split(string(payload), "\x00")
+				if len(topicName) >= 2 {
+					err := topic.Subscribe(topicName[0], conn, topicName[1])
+					if err != nil {
+						protocol.WriteFrame(conn, 0xFF, []byte(err.Error()))
+						break
+					}
+				} else {
+					err := topic.Subscribe(topicName[0], conn, "")
+					if err != nil {
+						protocol.WriteFrame(conn, 0xFF, []byte(err.Error()))
+						break
+					}
 				}
+
 				protocol.WriteFrame(conn, 0x10, nil)
 			}
 		case 0x06:
