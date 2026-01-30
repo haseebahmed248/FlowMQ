@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	data, err := net.Dial("tcp", "localhost:9876")
+	data, err := net.Dial("tcp", "broker:9876")
 	if err != nil {
 		log.Print(err)
 		return

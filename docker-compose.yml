@@ -1,1 +1,29 @@
-# Multi-container setup (coming-soon)
+services:
+  broker:
+    build:
+      context: .
+    ports:
+      - "9876:9876"
+    networks:
+      - flowmq
+    image: flowmq:1.0
+  consumer:
+    build:
+      context: .
+    networks:
+      - flowmq
+    command: ["go", "run", "/app/examples/consumer/main.go"]
+    depends_on: 
+     - broker
+  producer:
+    build:
+      context: .
+    networks:
+      - flowmq
+    command: ["go", "run", "/app/examples/producer/main.go"]
+    depends_on: 
+     - broker
+networks:
+  flowmq: 
+    driver: bridge
+  
