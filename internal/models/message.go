@@ -10,6 +10,7 @@ type Message struct {
 	Payload   []byte
 	Timestamp time.Time
 	Status    string // "PENDING", "DELIVERED", "ACKNOWLEDGED"
+	Retry     int
 }
 type Topic struct {
 	Name        string

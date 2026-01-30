@@ -132,3 +132,23 @@ func Cleanup(conn net.Conn) {
 		topic.Subscribers = filtered
 	}
 }
+
+// Retention Cleanup 60seconds
+func Retention() {
+
+	timer := time.NewTicker(5 * time.Minute)
+	for range timer.C {
+		mu.Lock()
+
+		for _, v := range models.Topics {
+			filtered := make([]models.Message, 0)
+			for _, v1 := range v.Messages {
+				if time.Since(v1.Timestamp).Seconds() < 60 || v1.Status != "ACKNOWLEDGED" {
+					filtered = append(filtered, v1)
+				}
+			}
+			v.Messages = filtered
+		}
+		mu.Unlock()
+	}
+}

@@ -80,9 +80,25 @@ func StartRedeliveryChecker() {
 				if k != "" {
 					elapsedSeconds := int(time.Since(v1).Seconds())
 					if elapsedSeconds > 30 {
-						for _, v := range models.Topics {
-							for _, v1 := range v.Messages {
+						for k1, v := range models.Topics {
+							for i, v1 := range v.Messages {
 								if v1.ID == k {
+									if v1.Retry >= 3 {
+										data := models.Topics[k1].Messages[i]
+										models.Topics[k1].Messages = append(models.Topics[k1].Messages[:i], models.Topics[k1].Messages[i+1:]...)
+										if models.Topics["___dlq__"+k1] == nil {
+											models.Topics["___dlq__"+k1] = &models.Topic{
+												Name:        "___dlq__" + k1,
+												Messages:    []models.Message{},
+												Subscribers: []net.Conn{},
+												Group:       make(map[string][]net.Conn),
+												GroupIndex:  map[string]int{},
+											}
+										}
+										models.Topics["___dlq__"+k1].Messages = append(models.Topics["___dlq__"+k1].Messages, data)
+										continue
+									}
+									v.Messages[i].Retry++
 									protocol.WriteFrame(client, 0x07, v1.Payload)
 								}
 							}
